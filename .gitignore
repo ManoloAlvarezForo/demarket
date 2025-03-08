@@ -13,3 +13,5 @@ out/
 # Hardhat
 cache/
 artifacts/
+
+.DS_Store
