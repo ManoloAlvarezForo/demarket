@@ -1,0 +1,15 @@
+# Node.js
+node_modules/
+dist/
+.cache/
+.env
+.next/
+out/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Hardhat
+cache/
+artifacts/
