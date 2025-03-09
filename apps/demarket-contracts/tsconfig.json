@@ -5,7 +5,11 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "outDir": "dist",
+    "rootDir": ".",
     "skipLibCheck": true,
     "resolveJsonModule": true
-  }
+  },
+  "include": ["./scripts", "./test", "./contracts"],
+  "exclude": ["node_modules"]
 }
