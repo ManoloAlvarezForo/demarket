@@ -84,6 +84,7 @@ export class ItemsService {
 
     for (let i = 1; i <= itemCount; i++) {
       const item = (await deMarketContract.items(i)) as RawItem;
+      console.log('quantity ', item.quantity);
       items.push({
         id: i,
         seller: item.seller,

@@ -18,6 +18,7 @@ export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private deMarketContract: DeMarketContract;
+  private contractAddress: string;
 
   constructor(private configService: ConfigService) {
     // Obtener el entorno actual (local, sepolia, mainnet)
@@ -49,7 +50,7 @@ export class BlockchainService {
     }
 
     this.wallet = new ethers.Wallet(privateKey, this.provider);
-
+    this.contractAddress = contractAddress;
     // Configurar el contrato
     this.deMarketContract = new ethers.Contract(
       contractAddress,
@@ -58,8 +59,17 @@ export class BlockchainService {
     ) as DeMarketContract; // Usar la interfaz
   }
 
+  // Método para obtener el provider
+  getProvider(): ethers.JsonRpcProvider {
+    return this.provider;
+  }
+
   getDeMarketContract(): DeMarketContract {
     return this.deMarketContract;
+  }
+
+  getContractAddress(): string {
+    return this.contractAddress; // Puedes acceder a la dirección del contrato aquí
   }
 
   getSigner(): ethers.Wallet {

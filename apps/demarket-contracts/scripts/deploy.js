@@ -1,8 +1,7 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  // Get available accounts
-  const [owner, seller, buyer] = await ethers.getSigners();
+  const [owner, seller] = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", owner.address);
   console.log(
@@ -11,25 +10,23 @@ async function main() {
     "ETH"
   );
 
-  // Deploy the ERC20Mock contract
-  console.log("\nDeploying ERC20Mock...");
-  const Token = await ethers.getContractFactory("ERC20Mock");
-  const token = await Token.deploy(
-    "Test Token",
-    "TTK",
-    seller.address,
-    ethers.parseEther("1000")
-  );
-  await token.waitForDeployment();
+  // Deploy DMX Token
+  console.log("\nDeploying DMX Token...");
+  const DMXToken = await ethers.getContractFactory("DMX");
+  const dmxToken = await DMXToken.deploy(ethers.parseEther("1000"));
+  await dmxToken.waitForDeployment();
 
-  console.log("ERC20Mock deployed to:", token.target);
+  console.log("DMX Token deployed to:", dmxToken.target);
+
+  // Transfer tokens to seller
+  await dmxToken.transfer(seller.address, ethers.parseEther("100"));
   console.log(
     "Seller balance:",
-    ethers.formatEther(await token.balanceOf(seller.address)),
-    "TTK"
+    ethers.formatEther(await dmxToken.balanceOf(seller.address)),
+    "DMX"
   );
 
-  // Deploy the DeMarket contract
+  // Deploy DeMarket
   console.log("\nDeploying DeMarket...");
   const DeMarket = await ethers.getContractFactory("DeMarket");
   const deMarket = await DeMarket.deploy();
@@ -37,8 +34,12 @@ async function main() {
 
   console.log("DeMarket deployed to:", deMarket.target);
 
-  // Verify the owner of the DeMarket contract
-//   console.log("DeMarket owner:", await deMarket.owner());
+  // If DeMarket has an owner, check it
+  try {
+    console.log("DeMarket owner:", await deMarket.owner());
+  } catch (error) {
+    console.log("DeMarket contract does not have an owner function.");
+  }
 }
 
 main()
