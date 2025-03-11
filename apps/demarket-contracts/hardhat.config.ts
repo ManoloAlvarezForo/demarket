@@ -2,7 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import dotenv from "dotenv";
 
-// Cargar variables de entorno desde .env
+// Load environment variables from .env
 dotenv.config();
 
 const config: HardhatUserConfig = {
@@ -17,11 +17,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      // Configuración de la red Hardhat (usada para pruebas)
+      // Hardhat network configuration (used for testing)
     },
     localhost: {
-      url: "http://127.0.0.1:8545", // URL de la red local
-      chainId: 31337, // Chain ID de Hardhat (por defecto)
+      url: "http://127.0.0.1:8545", // Local network URL
+      chainId: 31337, // Hardhat Chain ID (default)
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",

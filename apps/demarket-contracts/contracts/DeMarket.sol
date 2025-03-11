@@ -2,9 +2,12 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
+using SafeERC20 for IERC20;
 
 contract DeMarket is ReentrancyGuard, EIP712 {
     using ECDSA for bytes32;
@@ -12,7 +15,8 @@ contract DeMarket is ReentrancyGuard, EIP712 {
     struct Item {
         address seller;
         address token;
-        uint256 price; // Price in ETH per token
+        string name;
+        uint256 price; // Price in ETH per token (in Wei)
         uint256 quantity;
     }
 
@@ -24,7 +28,14 @@ contract DeMarket is ReentrancyGuard, EIP712 {
     string private constant SIGNING_DOMAIN = "Marketplace";
     string private constant SIGNATURE_VERSION = "1";
 
-    event ItemListed(uint256 indexed itemId, address indexed seller, address indexed token, uint256 price, uint256 quantity);
+    event ItemListed(
+        uint256 indexed itemId,
+        address indexed seller,
+        address indexed token,
+        string name,
+        uint256 price,
+        uint256 quantity
+    );
     event ItemPurchased(uint256 indexed itemId, address indexed buyer, uint256 quantity);
     event FundsWithdrawn(address indexed seller, uint256 amount);
     event ItemAuthorized(address indexed seller, uint256 indexed itemId, bytes signature);
@@ -34,16 +45,21 @@ contract DeMarket is ReentrancyGuard, EIP712 {
     /**
      * @notice List a certain amount of ERC-20 tokens for sale at a specified price in Ether.
      */
-    function listItem(address _token, uint256 _price, uint256 _quantity) external nonReentrant {
+    function listItem(
+        address _token, 
+        string calldata _name, 
+        uint256 _price, 
+        uint256 _quantity
+    ) external nonReentrant {
         require(_token != address(0), "Invalid token address");
         require(_price > 0, "Price must be greater than zero");
         require(_quantity > 0, "Quantity must be greater than zero");
         require(IERC20(_token).totalSupply() > 0, "Invalid ERC-20 token");
-
+    
         itemCount++;
-        items[itemCount] = Item(msg.sender, _token, _price, _quantity);
-
-        emit ItemListed(itemCount, msg.sender, _token, _price, _quantity);
+        items[itemCount] = Item(msg.sender, _token, _name, _price, _quantity);
+    
+        emit ItemListed(itemCount, msg.sender, _token, _name, _price, _quantity);
     }
 
     /**
@@ -60,11 +76,8 @@ contract DeMarket is ReentrancyGuard, EIP712 {
         IERC20 token = IERC20(item.token);
         require(token.allowance(item.seller, address(this)) >= _quantity, "Marketplace not approved");
 
-        // Transfer tokens from seller to buyer
-        (bool success, bytes memory data) = address(token).call(
-            abi.encodeWithSelector(IERC20.transferFrom.selector, item.seller, msg.sender, _quantity)
-        );
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "Token transfer failed");
+        // Transfer tokens safely using SafeERC20
+        token.safeTransferFrom(item.seller, msg.sender, _quantity);
 
         item.quantity -= _quantity;
         balances[item.seller] += msg.value;
