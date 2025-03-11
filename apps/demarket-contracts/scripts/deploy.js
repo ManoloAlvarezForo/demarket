@@ -1,24 +1,44 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  // Obtener las cuentas disponibles
+  // Get available accounts
   const [owner, seller, buyer] = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", owner.address);
+  console.log(
+    "Owner balance:",
+    ethers.formatEther(await ethers.provider.getBalance(owner.address)),
+    "ETH"
+  );
 
-  // Desplegar el contrato ERC20Mock
+  // Deploy the ERC20Mock contract
+  console.log("\nDeploying ERC20Mock...");
   const Token = await ethers.getContractFactory("ERC20Mock");
-  const token = await Token.deploy("Test Token", "TTK", seller.address, ethers.parseEther("1000"));
+  const token = await Token.deploy(
+    "Test Token",
+    "TTK",
+    seller.address,
+    ethers.parseEther("1000")
+  );
   await token.waitForDeployment();
 
   console.log("ERC20Mock deployed to:", token.target);
+  console.log(
+    "Seller balance:",
+    ethers.formatEther(await token.balanceOf(seller.address)),
+    "TTK"
+  );
 
-  // Desplegar el contrato DeMarket
+  // Deploy the DeMarket contract
+  console.log("\nDeploying DeMarket...");
   const DeMarket = await ethers.getContractFactory("DeMarket");
-  const deMarket = await DeMarket.deploy(owner.address);
+  const deMarket = await DeMarket.deploy();
   await deMarket.waitForDeployment();
 
   console.log("DeMarket deployed to:", deMarket.target);
+
+  // Verify the owner of the DeMarket contract
+//   console.log("DeMarket owner:", await deMarket.owner());
 }
 
 main()
