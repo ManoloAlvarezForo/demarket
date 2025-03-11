@@ -17,6 +17,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      // Configuración de la red Hardhat (usada para pruebas)
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545", // URL de la red local
+      chainId: 31337, // Chain ID de Hardhat (por defecto)
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",

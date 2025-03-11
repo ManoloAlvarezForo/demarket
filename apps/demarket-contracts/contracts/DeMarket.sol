@@ -1,95 +1,131 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol"; // Nueva importación
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-contract DeMarket is Ownable, ReentrancyGuard {
+contract DeMarket is ReentrancyGuard, EIP712 {
     using ECDSA for bytes32;
-    uint256 public itemCount;
-
-
-    constructor(address initialOwner) Ownable(initialOwner) {
-        itemCount = 0;
-    }
 
     struct Item {
         address seller;
-        uint256 price;
-        uint256 quantity;
         address token;
+        uint256 price; // Price in ETH per token
+        uint256 quantity;
     }
 
     mapping(uint256 => Item) public items;
-    mapping(address => mapping(address => uint256)) public allowances; // Mapping to store allowed transfer amounts
+    mapping(address => uint256) public balances;
+    mapping(address => uint256) public nonces;
 
-    event ItemListed(uint256 indexed itemId, address indexed seller, address token, uint256 price, uint256 quantity);
+    uint256 public itemCount;
+    string private constant SIGNING_DOMAIN = "Marketplace";
+    string private constant SIGNATURE_VERSION = "1";
+
+    event ItemListed(uint256 indexed itemId, address indexed seller, address indexed token, uint256 price, uint256 quantity);
     event ItemPurchased(uint256 indexed itemId, address indexed buyer, uint256 quantity);
     event FundsWithdrawn(address indexed seller, uint256 amount);
     event ItemAuthorized(address indexed seller, uint256 indexed itemId, bytes signature);
 
-    // List an item for sale
-    function listItem(address _token, uint256 _price, uint256 _quantity) public {
+    constructor() EIP712(SIGNING_DOMAIN, SIGNATURE_VERSION) {}
+
+    /**
+     * @notice List a certain amount of ERC-20 tokens for sale at a specified price in Ether.
+     */
+    function listItem(address _token, uint256 _price, uint256 _quantity) external nonReentrant {
         require(_token != address(0), "Invalid token address");
-        require(_price > 0, "Price must be greater than 0");
-        require(_quantity > 0, "Quantity must be greater than 0");
+        require(_price > 0, "Price must be greater than zero");
+        require(_quantity > 0, "Quantity must be greater than zero");
+        require(IERC20(_token).totalSupply() > 0, "Invalid ERC-20 token");
 
         itemCount++;
-        items[itemCount] = Item(msg.sender, _price, _quantity, _token);
+        items[itemCount] = Item(msg.sender, _token, _price, _quantity);
+
         emit ItemListed(itemCount, msg.sender, _token, _price, _quantity);
     }
 
-    // Purchase an item from the marketplace
-    function purchaseItem(uint256 _itemId, uint256 _quantity) public payable nonReentrant {
-        require(_itemId > 0 && _itemId <= itemCount, "Invalid item ID");
-        require(_quantity > 0, "Quantity must be greater than 0");
-
+    /**
+     * @notice Buy a listed item by paying ETH and receiving the ERC-20 tokens.
+     */
+    function purchaseItem(uint256 _itemId, uint256 _quantity) external payable nonReentrant {
         Item storage item = items[_itemId];
-        require(item.quantity >= _quantity, "Not enough tokens available");
+        require(item.seller != address(0), "Item does not exist");
+        require(_quantity > 0 && _quantity <= item.quantity, "Invalid quantity");
+        
+        uint256 totalPrice = _quantity * item.price;
+        require(msg.value == totalPrice, "Incorrect Ether sent");
 
-        uint256 totalPrice = item.price * _quantity;
-        require(msg.value >= totalPrice, "Insufficient Ether sent");
+        IERC20 token = IERC20(item.token);
+        require(token.allowance(item.seller, address(this)) >= _quantity, "Marketplace not approved");
 
         // Transfer tokens from seller to buyer
-        bool success = IERC20(item.token).transferFrom(item.seller, msg.sender, _quantity);
-        require(success, "Token transfer failed");
+        (bool success, bytes memory data) = address(token).call(
+            abi.encodeWithSelector(IERC20.transferFrom.selector, item.seller, msg.sender, _quantity)
+        );
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "Token transfer failed");
 
-        // Update item quantity
         item.quantity -= _quantity;
-
-        // Transfer Ether to seller
-        (bool sent, ) = item.seller.call{value: msg.value}("");
-        require(sent, "Failed to send Ether");
+        balances[item.seller] += msg.value;
 
         emit ItemPurchased(_itemId, msg.sender, _quantity);
     }
 
-    // Withdraw funds (Ether) from the contract
-    function withdrawFunds() public onlyOwner nonReentrant {
-        uint256 amount = address(this).balance;
+    /**
+     * @notice Withdraw earned ETH from the marketplace.
+     */
+    function withdrawFunds() external nonReentrant {
+        uint256 amount = balances[msg.sender];
         require(amount > 0, "No funds to withdraw");
+        balances[msg.sender] = 0;
 
-        (bool sent, ) = owner().call{value: amount}("");
-        require(sent, "Failed to send Ether");
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        require(sent, "Withdraw failed");
 
         emit FundsWithdrawn(msg.sender, amount);
     }
 
-    // Allow sellers to pre-authorize token listings using signed messages
-    function authorizeItem(uint256 _itemId, bytes calldata _signature) public {
-        Item storage item = items[_itemId];
-        require(item.seller == msg.sender, "Only seller can authorize item");
+    /**
+     * @notice Authorize a sale using an EIP-712 signed message.
+     */
+    function authorizeItem(
+        uint256 _itemId,
+        uint256 _quantity,
+        bytes calldata _signature
+    ) external {
+        Item memory item = items[_itemId];
+        require(item.seller != address(0), "Item does not exist");
+        require(_quantity > 0 && _quantity <= item.quantity, "Invalid quantity");
 
-        bytes32 message = keccak256(abi.encodePacked(address(this), _itemId));
-        bytes32 messageHash = MessageHashUtils.toEthSignedMessageHash(message); // Usa MessageHashUtils
-        address signer = messageHash.recover(_signature);
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(
+                keccak256("ItemAuthorization(uint256 itemId,uint256 quantity,address seller,uint256 nonce)"),
+                _itemId,
+                _quantity,
+                item.seller,
+                nonces[item.seller]
+            ))
+        );
 
-        require(signer == msg.sender, "Invalid signature");
-        allowances[msg.sender][item.token] = item.quantity;
+        address signer = digest.recover(_signature);
+        require(signer == item.seller, "Invalid signature");
 
-        emit ItemAuthorized(msg.sender, _itemId, _signature);
+        nonces[item.seller]++;
+        emit ItemAuthorized(item.seller, _itemId, _signature);
+    }
+
+    /**
+     * @notice Get the nonce for a seller to prevent replay attacks.
+     */
+    function getNonce(address _seller) external view returns (uint256) {
+        return nonces[_seller];
+    }
+
+    /**
+     * @notice Fallback function to prevent accidental ETH deposits.
+     */
+    receive() external payable {
+        revert("Direct ETH deposits not allowed");
     }
 }
