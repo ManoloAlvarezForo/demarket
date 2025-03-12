@@ -2,10 +2,187 @@ import { Injectable } from '@nestjs/common';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { ethers } from 'ethers';
 import { RawItem } from 'src/items/types/item.type';
+import { SellOrderData } from './dto/sell.dto';
+import { ERC20Contract } from 'src/interfaces/erc20-contract.interface';
+import { DeMarketABI } from 'src/interfaces/DeMarketABI';
 
 @Injectable()
 export class TransactionsService {
   constructor(private blockchainService: BlockchainService) {}
+
+  async processSellOrder(sellData: SellOrderData) {
+    try {
+      // Validate numeric fields
+      if (isNaN(Number(sellData.amount))) {
+        // <-- Parenthesis added
+        throw new Error('Invalid Amount');
+      }
+      if (isNaN(Number(sellData.price))) {
+        // <-- Parenthesis added
+        throw new Error('Invalid Price');
+      }
+      console.log('[Backend] Received data:', sellData); // <--- Key log
+      // 1. Verify only the seller's signature
+      const isValidSeller = this.verifySignature(
+        sellData,
+        sellData.sellerSignature,
+        sellData.seller,
+      );
+
+      console.log('Sale data:', sellData);
+      console.log('Seller signature:', sellData.sellerSignature);
+      console.log('Seller:', sellData.seller);
+      console.log('Buyer:', sellData.buyerAddress);
+
+      if (!isValidSeller) {
+        throw new Error('Invalid seller signature');
+      }
+
+      // 2. Get contract instances
+      const tokenContract = this.blockchainService.getTokenContract(
+        sellData.token,
+      );
+      const signer = this.blockchainService.getSigner();
+
+      // 3. Verify seller's balance
+      const sellerBalance = (await tokenContract.balanceOf(
+        sellData.seller,
+      )) as bigint;
+      const requiredAmount = BigInt(sellData.amount);
+
+      if (sellerBalance < requiredAmount) {
+        throw new Error('Insufficient seller balance');
+      }
+
+      // 4. Execute transfer
+      await this.transferTokens(
+        tokenContract,
+        signer,
+        sellData.seller,
+        sellData.buyerAddress, // Use buyerAddress
+        requiredAmount,
+      );
+
+      return {
+        txHash: 'Transaction successful',
+        details: `${sellData.amount} tokens transferred from ${sellData.seller} to ${sellData.buyerAddress}`,
+      };
+    } catch (error) {
+      const err = error as Error;
+      console.error('Error processing sell order:', err);
+      throw new Error(`Error processing order: ${err.message}`);
+    }
+  }
+
+  // transactions.service.ts (Backend)
+  private verifySignature(
+    orderData: SellOrderData,
+    signature: string,
+    expectedSigner: string,
+  ): boolean {
+    // A. Get chainId and contractAddress from the domain SYNCHRONOUSLY
+    const chainId = 31337; // Hardcoded for development (must match the frontend!)
+
+    const domain = {
+      name: 'DeMarket',
+      version: '1',
+      chainId: chainId, // Must return 31337
+      verifyingContract: this.blockchainService.getContractAddress(), // Must return 0x9fE467...
+    };
+
+    // B. EXACT structure of EIP-712 types
+    const types = {
+      SellOrder: [
+        { name: 'seller', type: 'address' },
+        { name: 'token', type: 'address' },
+        { name: 'amount', type: 'uint256' },
+        { name: 'price', type: 'uint256' },
+        { name: 'buyer', type: 'address' }, // <-- buyer (not buyerAddress)
+      ],
+    };
+
+    // C. Correct mapping of buyerAddress to buyer
+    const message = {
+      seller: orderData.seller,
+      token: orderData.token,
+      amount: orderData.amount,
+      price: orderData.price,
+      buyer: orderData.buyerAddress,
+    };
+
+    console.log('[Backend] Message to verify:', message);
+
+    try {
+      const recoveredAddress = ethers.verifyTypedData(
+        domain,
+        types,
+        message,
+        signature,
+      );
+      return recoveredAddress.toLowerCase() === expectedSigner.toLowerCase();
+    } catch (error) {
+      const err = error as Error;
+      console.error('Error verifying signature:', err);
+      return false;
+    }
+  }
+
+  async transferTokens(
+    tokenContract: ERC20Contract,
+    signer: ethers.Signer,
+    from: string,
+    to: string,
+    amount: bigint,
+  ): Promise<void> {
+    try {
+      const marketplaceAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
+
+      // Verify allowance
+      const allowance = (await tokenContract.allowance(
+        from,
+        marketplaceAddress,
+      )) as bigint;
+      console.log('[DEBUG] Allowance:', allowance.toString());
+
+      if (allowance < amount) {
+        throw new Error(
+          `Insufficient allowance: ${allowance.toString()} < ${amount.toString()}`,
+        );
+      }
+
+      // Create Marketplace contract instance with full ABI
+      const marketplaceContract = new ethers.Contract(
+        marketplaceAddress,
+        DeMarketABI, // Ensure it includes executeTransfer
+        signer,
+      );
+
+      // Execute contract function
+      const tx = (await marketplaceContract.executeTransfer(
+        tokenContract.target,
+        from,
+        to,
+        amount,
+      )) as ethers.TransactionResponse;
+
+      const receipt = await tx.wait();
+      console.log(
+        '[SUCCESS] Transaction mined in block:',
+        receipt?.blockNumber,
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error('[ERROR] Full details:', {
+        rawError: err,
+        from,
+        to,
+        amount: amount.toString(),
+        tokenAddress: tokenContract.target,
+        signerAddress: await signer.getAddress(),
+      });
+      throw new Error(`Transfer failed: ${(error as Error).message}`);
+    }
+  }
 
   /**
    * Securely transfers tokens by connecting the contract to a specific signer.

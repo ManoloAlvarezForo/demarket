@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { ListItemForm } from "../components/ListItemForm";
 import { WithdrawSection } from "../components/WithdrawSection";
+import { SellTokensSection } from "../components/SellTokensSection";
 
 export default function SellerDashboard() {
-  const [activeTab, setActiveTab] = useState<"list" | "withdraw">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "withdraw" | "sell">(
+    "list"
+  );
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white p-4 pt-24">
@@ -32,11 +35,21 @@ export default function SellerDashboard() {
           >
             Withdraw Funds
           </button>
+          <button
+            className={`flex-1 py-2 text-center ${
+              activeTab === "sell"
+                ? "border-b-2 border-blue-500 font-bold"
+                : "text-gray-400"
+            }`}
+            onClick={() => setActiveTab("sell")}
+          >
+            Sell Tokens
+          </button>
         </div>
-        {/* Contenido de la pestaña */}
         <div className="mt-8">
           {activeTab === "list" && <ListItemForm />}
           {activeTab === "withdraw" && <WithdrawSection />}
+          {activeTab === "sell" && <SellTokensSection />}
         </div>
       </div>
     </div>

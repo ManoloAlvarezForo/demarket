@@ -1,9 +1,16 @@
-import { HardhatUserConfig } from "hardhat/config";
+import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import dotenv from "dotenv";
 
-// Load environment variables from .env
 dotenv.config();
+
+if (!process.env.SEPOLIA_RPC_URL || !process.env.PRIVATE_KEYS) {
+  throw new Error("❌ Missing SEPOLIA_RPC_URL o PRIVATE_KEYS config at .env");
+}
+
+const sepoliaAccounts = process.env.PRIVATE_KEYS
+  ? process.env.PRIVATE_KEYS.split(",").map((key) => key.trim())
+  : [];
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -16,16 +23,15 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhat: {
-      // Hardhat network configuration (used for testing)
-    },
+    hardhat: {},
     localhost: {
-      url: "http://127.0.0.1:8545", // Local network URL
-      chainId: 31337, // Hardhat Chain ID (default)
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
     },
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts: sepoliaAccounts,
+      chainId: 11155111
     },
     mainnet: {
       url: process.env.MAINNET_RPC_URL || "",
@@ -46,3 +52,10 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
+task("accounts", "Muestra las cuentas configuradas en Hardhat", async (args, hre) => {
+  const accounts = await hre.ethers.getSigners();
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});

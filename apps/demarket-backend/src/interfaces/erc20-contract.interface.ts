@@ -41,4 +41,16 @@ export interface ERC20Contract extends ethers.Contract {
    * @returns A boolean indicating whether the transfer was successful.
    */
   transfer: ethers.ContractMethod<[recipient: string, amount: bigint], boolean>;
+
+  /**
+   * Transfers tokens from one address to another, provided the caller has been approved to spend the tokens.
+   * @param from - The address from which tokens will be transferred.
+   * @param to - The address to which tokens will be transferred.
+   * @param amount - The number of tokens to transfer (in the smallest unit).
+   * @returns A boolean indicating whether the transfer was successful.
+   */
+  transferFrom: ethers.ContractMethod<
+    [from: string, to: string, amount: bigint],
+    boolean
+  >;
 }
