@@ -4,14 +4,29 @@ import { useState } from "react";
 import { useAccount } from "wagmi";
 import { SUPPORTED_TOKENS } from "../config/tokens";
 
+/**
+ * ListItemForm component allows a user to list an item for sale on the marketplace.
+ * It now includes an input for the item's name.
+ */
 export const ListItemForm = () => {
-  const { isConnected } = useAccount(); // Obtener la dirección del usuario
-  const [tokenAddress, setTokenAddress] = useState(SUPPORTED_TOKENS[0].address); // Default al primer token
-  const [price, setPrice] = useState(""); // Precio por unidad
-  const [quantity, setQuantity] = useState(""); // Cantidad disponible
-  const [isLoading, setIsLoading] = useState(false); // Estado de carga
-  const [error, setError] = useState(""); // Mensaje de error
+  // Get the user's wallet connection status
+  const { isConnected } = useAccount();
+  // Set default token address to the first supported token
+  const [tokenAddress, setTokenAddress] = useState(SUPPORTED_TOKENS[0].address);
+  // State for the item name
+  const [name, setName] = useState("");
+  // State for price per unit (as string, e.g., "0.1")
+  const [price, setPrice] = useState("");
+  // State for quantity (as string, e.g., "100")
+  const [quantity, setQuantity] = useState("");
+  // Loading state
+  const [isLoading, setIsLoading] = useState(false);
+  // Error message state
+  const [error, setError] = useState("");
 
+  /**
+   * Handles form submission by calling the backend endpoint to list the item.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -20,7 +35,7 @@ export const ListItemForm = () => {
       return;
     }
 
-    if (!tokenAddress || !price || !quantity) {
+    if (!tokenAddress || !name || !price || !quantity) {
       setError("Please fill in all fields.");
       return;
     }
@@ -31,6 +46,7 @@ export const ListItemForm = () => {
     try {
       const bodyBefore = {
         tokenAddress,
+        name,
         price: price.toString(),
         quantity: quantity.toString(),
       };
@@ -49,9 +65,7 @@ export const ListItemForm = () => {
       }
 
       const result = await response.json();
-      alert(
-        `Item listed successfully! Transaction hash: ${result.transactionHash}`
-      );
+      alert(`Item listed successfully! Transaction hash: ${result.transactionHash}`);
     } catch (error) {
       const err = error as Error;
       console.error("Error listing item:", err);
@@ -73,6 +87,7 @@ export const ListItemForm = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Token selection */}
             <div>
               <label className="block text-gray-300 mb-1">Select Token</label>
               <select
@@ -87,6 +102,19 @@ export const ListItemForm = () => {
                 ))}
               </select>
             </div>
+            {/* Item name input */}
+            <div>
+              <label className="block text-gray-300 mb-1">Item Name</label>
+              <input
+                type="text"
+                placeholder="Item name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full p-2 bg-gray-700 text-white rounded-lg"
+                required
+              />
+            </div>
+            {/* Price input */}
             <div>
               <label className="block text-gray-300 mb-1">Price per Unit</label>
               <input
@@ -98,6 +126,7 @@ export const ListItemForm = () => {
                 required
               />
             </div>
+            {/* Quantity input */}
             <div>
               <label className="block text-gray-300 mb-1">Quantity</label>
               <input
@@ -109,7 +138,9 @@ export const ListItemForm = () => {
                 required
               />
             </div>
+            {/* Display error if any */}
             {error && <p className="text-red-500 text-sm">{error}</p>}
+            {/* Submit button */}
             <button
               type="submit"
               disabled={isLoading}
