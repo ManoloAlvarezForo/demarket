@@ -8,7 +8,7 @@ import { ERC20Contract } from '../interfaces/erc20-contract.interface';
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
-  'function balanceOf(address owner) view returns (uint256)', // Función agregada
+  'function balanceOf(address owner) view returns (uint256)', // Added function
   'function decimals() view returns (uint8)',
   'function transfer(address recipient, uint256 amount) returns (bool)',
 ];
@@ -21,27 +21,39 @@ export class BlockchainService {
   private contractAddress: string;
 
   constructor(private configService: ConfigService) {
-    // Obtener el entorno actual (local, sepolia, mainnet)
+    // Get current environment (LOCAL, SEPOLIA, MAINNET, etc.)
     const env = this.configService
       .get<string>('NODE_ENV', 'local')
       .toUpperCase();
 
-    // Obtener las variables de entorno según el entorno
+    // Retrieve environment variables according to the environment
     const rpcUrl = this.configService.get<string>(`${env}_RPC_URL`);
     let privateKey = this.configService.get<string>(`${env}_PRIVATE_KEY`) || '';
     const contractAddress = this.configService.get<string>(
       `${env}_DEMARKET_CONTRACT_ADDRESS`,
     );
 
-    // Validar que las variables estén definidas
+    // Validate that the required variables are defined
     if (!rpcUrl || !contractAddress) {
       throw new Error(`Missing configuration for environment: ${env}`);
     }
 
-    // Configurar el provider
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
+    // Validate that privateKey is provided in non-local environments
+    if (!privateKey && env !== 'LOCAL') {
+      throw new Error(`Missing private key for environment: ${env}`);
+    }
 
-    // Si no hay privateKey en local, generar una billetera de prueba
+    // Configure the provider
+    try {
+      this.provider = new ethers.JsonRpcProvider(rpcUrl);
+    } catch (error) {
+      const err = error as Error;
+      throw new Error(
+        `Failed to connect to provider: ${rpcUrl}, ${err.message}`,
+      );
+    }
+
+    // For local environment, generate a random wallet if no private key is provided
     if (!privateKey && env === 'LOCAL') {
       console.warn(
         'No private key found, generating a random wallet for local use.',
@@ -49,33 +61,39 @@ export class BlockchainService {
       privateKey = ethers.Wallet.createRandom().privateKey;
     }
 
+    // Create wallet instance
     this.wallet = new ethers.Wallet(privateKey, this.provider);
     this.contractAddress = contractAddress;
-    // Configurar el contrato
+
+    // Initialize the DeMarket contract instance using the contract address, ABI, and wallet as signer
     this.deMarketContract = new ethers.Contract(
       contractAddress,
       DeMarketABI,
       this.wallet,
-    ) as DeMarketContract; // Usar la interfaz
+    ) as DeMarketContract;
   }
 
-  // Método para obtener el provider
+  // Method to get the provider
   getProvider(): ethers.JsonRpcProvider {
     return this.provider;
   }
 
+  // Method to get the DeMarket contract instance
   getDeMarketContract(): DeMarketContract {
     return this.deMarketContract;
   }
 
+  // Method to get the contract address
   getContractAddress(): string {
-    return this.contractAddress; // Puedes acceder a la dirección del contrato aquí
+    return this.contractAddress;
   }
 
+  // Method to get the wallet (signer)
   getSigner(): ethers.Wallet {
     return this.wallet;
   }
 
+  // Method to get a token contract instance for a given token address
   getTokenContract(tokenAddress: string): ERC20Contract {
     return new ethers.Contract(
       tokenAddress,
@@ -84,3 +102,5 @@ export class BlockchainService {
     ) as ERC20Contract;
   }
 }
+
+export default BlockchainService;

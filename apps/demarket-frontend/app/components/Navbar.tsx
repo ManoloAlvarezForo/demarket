@@ -16,7 +16,7 @@ export const Navbar = () => {
             Marketplace
           </Link>
           <Link href="/dashboard" className="text-white hover:text-gray-300">
-            Dashboard
+            Seller Dashboard
           </Link>
         </div>
         <ConnectButton />

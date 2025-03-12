@@ -44,6 +44,17 @@ export const DeMarketABI = [
   {
     inputs: [
       {
+        internalType: 'address',
+        name: 'token',
+        type: 'address',
+      },
+    ],
+    name: 'SafeERC20FailedOperation',
+    type: 'error',
+  },
+  {
+    inputs: [
+      {
         internalType: 'string',
         name: 'str',
         type: 'string',
@@ -122,6 +133,12 @@ export const DeMarketABI = [
         internalType: 'address',
         name: 'token',
         type: 'address',
+      },
+      {
+        indexed: false,
+        internalType: 'string',
+        name: 'name',
+        type: 'string',
       },
       {
         indexed: false,
@@ -302,6 +319,11 @@ export const DeMarketABI = [
         type: 'address',
       },
       {
+        internalType: 'string',
+        name: 'name',
+        type: 'string',
+      },
+      {
         internalType: 'uint256',
         name: 'price',
         type: 'uint256',
@@ -321,6 +343,11 @@ export const DeMarketABI = [
         internalType: 'address',
         name: '_token',
         type: 'address',
+      },
+      {
+        internalType: 'string',
+        name: '_name',
+        type: 'string',
       },
       {
         internalType: 'uint256',
