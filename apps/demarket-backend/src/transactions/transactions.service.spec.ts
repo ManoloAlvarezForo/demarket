@@ -204,6 +204,7 @@ describe('TransactionsService', () => {
       expect(result).toMatchObject({
         txHash: '0xWithdrawHash',
         amountWithdrawn: ethers.formatEther(ethers.parseEther('5')),
+        success: true,
       });
       expect(mockDeMarketContract.withdrawFunds).toHaveBeenCalled();
     });

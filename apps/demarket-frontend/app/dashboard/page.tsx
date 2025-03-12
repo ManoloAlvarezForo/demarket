@@ -9,9 +9,8 @@ export default function SellerDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-900 text-white p-4 pt-24">
-      <h1 className="text-5xl font-bold mb-8 text-center">Seller Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center">Seller Dashboard</h1>
       <div className="w-full max-w-4xl">
-        {/* Tabs */}
         <div className="flex border-b border-gray-700">
           <button
             className={`flex-1 py-2 text-center ${

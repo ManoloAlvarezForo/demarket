@@ -2,48 +2,38 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
+import { WithdrawResponse } from "../types/withdraw";
+import { useMarketplaceApi } from "../hooks/useMarketplaceApi";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export const WithdrawSection = () => {
   const { address, isConnected } = useAccount();
   const queryClient = useQueryClient();
+  const { withdrawFunds } = useMarketplaceApi();
 
-  const withdrawMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(
-        "http://localhost:3000/transactions/withdraw",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Withdrawal failed");
-      }
-      return response.json();
-    },
+  const withdrawfunc = useMutation<WithdrawResponse>({
+    mutationFn: withdrawFunds,
     onSuccess: (data) => {
       if (!data.success) {
-        alert(data.error);
+        toast.error(data.error);
       } else {
         queryClient.invalidateQueries({ queryKey: ["items", address] });
-        alert(`Withdrawal successful! Tx hash: ${data.txHash}`);
+        toast.success(`✅ Withdrawal successful! Tx hash: ${data.txHash}`);
       }
     },
     onError: (error) => {
       console.error("Error withdrawing funds:", error);
-      alert("Withdrawal failed. Please try again.");
+      toast.error("❌ Withdrawal failed. Please try again.");
     },
   });
 
   const handleWithdraw = () => {
     if (!isConnected) {
-      alert("Please connect your wallet first.");
+      toast.warn("⚠️ Please connect your wallet first.");
       return;
     }
-    withdrawMutation.mutate();
+    withdrawfunc.mutate();
   };
 
   return (
@@ -54,12 +44,10 @@ export const WithdrawSection = () => {
       </p>
       <button
         onClick={handleWithdraw}
-        disabled={withdrawMutation.status === "pending"}
+        disabled={withdrawfunc.isPending}
         className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50"
       >
-        {withdrawMutation.status === "pending"
-          ? "Withdrawing..."
-          : "Withdraw Funds"}
+        {withdrawfunc.isPending ? "Withdrawing..." : "Withdraw Funds"}
       </button>
     </div>
   );
