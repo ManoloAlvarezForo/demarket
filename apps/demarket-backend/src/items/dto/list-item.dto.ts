@@ -1,6 +1,6 @@
 export class ListItemDto {
   tokenAddress: string;
-  name: string; // New field
+  name: string;
   price: string;
   quantity: string;
 }

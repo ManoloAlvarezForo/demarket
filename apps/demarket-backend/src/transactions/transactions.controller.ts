@@ -36,16 +36,16 @@ export class TransactionsController {
    */
   @Post('withdraw')
   async withdrawFunds(): Promise<{
-    success: boolean;
+    success?: boolean;
     txHash?: string;
     amountWithdrawn?: string;
     error?: string;
   }> {
     try {
       console.log('Received withdraw request');
-      const { txHash, amountWithdrawn } =
+      const { txHash, amountWithdrawn, error, success } =
         await this.transactionsService.withdrawFunds();
-      return { success: true, txHash, amountWithdrawn };
+      return { success, txHash, amountWithdrawn, error };
     } catch (error) {
       const err = error as Error;
       console.error('Withdraw failed:', err.message);

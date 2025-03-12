@@ -5,10 +5,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: 'http://localhost:3001', // URL de tu frontend (Next.js)
+    origin: 'http://localhost:3001',
     methods: 'GET,POST,PUT,DELETE',
     credentials: true,
   });
-  await app.listen(3000); // Puerto del backend
+  await app.listen(3000);
 }
 void bootstrap();
