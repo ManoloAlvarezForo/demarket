@@ -61,10 +61,29 @@ export function useMarketplaceApi() {
     },
   });
 
+  // Mutation to sell tokens
+  const sellMutation = useMutation({
+    mutationFn: async (data: {
+      seller: string;
+      token: string;
+      amount: string;
+      price: string;
+      buyerAddress: string;
+      sellerSignature: string;
+    }) => {
+      return await callApi("/transactions/sell", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    },
+  });
+
   return {
     getItems,
     listItemMutation,
     purchaseMutation,
     withdrawFunds: withdrawMutation.mutateAsync,
+    sellMutation,
   };
 }

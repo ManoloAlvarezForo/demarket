@@ -8,9 +8,10 @@ import { ERC20Contract } from '../interfaces/erc20-contract.interface';
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function allowance(address owner, address spender) view returns (uint256)',
-  'function balanceOf(address owner) view returns (uint256)', // Added function
+  'function balanceOf(address owner) view returns (uint256)',
   'function decimals() view returns (uint8)',
   'function transfer(address recipient, uint256 amount) returns (bool)',
+  'function transferFrom(address from, address to, uint256 amount) returns (bool)', // Agrega esta línea
 ];
 
 @Injectable()
@@ -19,6 +20,7 @@ export class BlockchainService {
   private wallet: ethers.Wallet;
   private deMarketContract: DeMarketContract;
   private contractAddress: string;
+  private chainId: bigint; // Add chainId property
 
   constructor(private configService: ConfigService) {
     // Get current environment (LOCAL, SEPOLIA, MAINNET, etc.)
@@ -71,6 +73,16 @@ export class BlockchainService {
       DeMarketABI,
       this.wallet,
     ) as DeMarketContract;
+  }
+
+  // Method to get the chain ID
+  async getChainId(): Promise<bigint> {
+    if (this.chainId) {
+      return this.chainId;
+    }
+    const network = await this.provider.getNetwork();
+    this.chainId = network.chainId;
+    return this.chainId;
   }
 
   // Method to get the provider
