@@ -96,16 +96,7 @@ describe('TransactionsService', () => {
 
       const purchaseQuantity = '5'; // The buyer wants to purchase 5 tokens
 
-      // For the contract call, we use the quantity as an integer:
-      // (e.g., BigInt("5") gives 5n)
-      // For token functions, we use the quantity in base units (18 decimals):
-      // ethers.parseUnits("5", 18) -> 5000000000000000000n
       const expectedTokenQuantity = ethers.parseUnits(purchaseQuantity, 18);
-
-      // Calculate totalPrice: totalPrice = item.price * marketplaceQuantity
-      // If the price is 1e18 and 5 tokens are purchased, totalPrice = 5e18.
-      // (Using the integer value of purchaseQuantity: BigInt("5") == 5n)
-      // const totalPrice = BigInt(mockItem.price) * marketplaceQuantity;
 
       // Execute the purchaseItem function
       const result = await service.purchaseItem(1, purchaseQuantity);
