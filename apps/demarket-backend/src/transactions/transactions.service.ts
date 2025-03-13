@@ -3,8 +3,8 @@ import { BlockchainService } from '../blockchain/blockchain.service';
 import { ethers } from 'ethers';
 import { RawItem } from 'src/items/types/item.type';
 import { SellOrderData } from './dto/sell.dto';
-import { ERC20Contract } from 'src/interfaces/erc20-contract.interface';
-import { DeMarketABI } from 'src/interfaces/DeMarketABI';
+import { ERC20Contract } from '../interfaces/erc20-contract.interface';
+import { DeMarketABI } from '../interfaces/DeMarketABI';
 
 @Injectable()
 export class TransactionsService {
@@ -14,11 +14,9 @@ export class TransactionsService {
     try {
       // Validate numeric fields
       if (isNaN(Number(sellData.amount))) {
-        // <-- Parenthesis added
         throw new Error('Invalid Amount');
       }
       if (isNaN(Number(sellData.price))) {
-        // <-- Parenthesis added
         throw new Error('Invalid Price');
       }
       console.log('[Backend] Received data:', sellData); // <--- Key log
@@ -238,7 +236,6 @@ export class TransactionsService {
       const signer = this.blockchainService.getSigner();
       const tokenContract = this.blockchainService.getTokenContract(item.token);
 
-      // For the DeMarket contract call (marketplace), use the quantity as an integer.
       const marketplaceQuantity = BigInt(quantity);
       // For token (ERC20) functions, convert to base units (18 decimals).
       const tokenQuantity = ethers.parseUnits(String(quantity), 18);
@@ -289,8 +286,6 @@ export class TransactionsService {
       const provider = this.blockchainService.getProvider();
       const contractAddress = this.blockchainService.getContractAddress();
 
-      // Calculate totalPrice: item.price is in wei and marketplaceQuantity is an integer.
-      // For example, if item.price is 1e18 and marketplaceQuantity is 5, totalPrice = 5e18.
       const totalPrice = BigInt(item.price) * marketplaceQuantity;
 
       // Estimate gas for the call.
@@ -318,7 +313,7 @@ export class TransactionsService {
       console.log('Calling purchaseItem...');
       const txPurchase = (await deMarketContract.purchaseItem(
         itemId,
-        marketplaceQuantity, // Here we use the integer number (e.g., 10n)
+        marketplaceQuantity,
         { value: totalPrice, gasLimit: estimatedGas },
       )) as ethers.TransactionResponse;
       await txPurchase.wait();
